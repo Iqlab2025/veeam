@@ -1,0 +1,464 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_SQLITE",
+      "label": "SQLite (backup_dash.db)",
+      "type": "datasource",
+      "pluginId": "frser-sqlite-datasource",
+      "pluginName": "SQLite"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "frser-sqlite-datasource",
+      "name": "SQLite",
+      "version": "3.0.0"
+    }
+  ],
+  "title": "Backup Overview",
+  "uid": "backup-overview",
+  "tags": [
+    "backup",
+    "veeam"
+  ],
+  "timezone": "browser",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "refresh": "15m",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Backups (selected range)",
+      "type": "stat",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "${DS_SQLITE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 10,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "${DS_SQLITE}"
+          },
+          "queryType": "table",
+          "queryText": "SELECT count(*) AS total, coalesce(sum(status='SUCCESS'),0) AS successful,\n       coalesce(sum(status='WARNING'),0) AS warning, coalesce(sum(status='FAILED'),0) AS failed\nFROM runs WHERE kind='BACKUP' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')",
+          "rawQueryText": "SELECT count(*) AS total, coalesce(sum(status='SUCCESS'),0) AS successful,\n       coalesce(sum(status='WARNING'),0) AS warning, coalesce(sum(status='FAILED'),0) AS failed\nFROM runs WHERE kind='BACKUP' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "successful"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "warning"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "textMode": "value_and_name",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Failed backups by vendor / workload",
+      "type": "barchart",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "${DS_SQLITE}"
+      },
+      "gridPos": {
+        "x": 10,
+        "y": 0,
+        "w": 14,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "${DS_SQLITE}"
+          },
+          "queryType": "table",
+          "queryText": "SELECT vendor || ' / ' || workload AS failure, count(*) AS failed\nFROM runs WHERE kind='BACKUP' AND status='FAILED' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY vendor, workload ORDER BY failed DESC",
+          "rawQueryText": "SELECT vendor || ' / ' || workload AS failure, count(*) AS failed\nFROM runs WHERE kind='BACKUP' AND status='FAILED' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY vendor, workload ORDER BY failed DESC",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "xField": "failure",
+        "showValue": "always",
+        "legend": {
+          "showLegend": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Backup job trend (per day)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "${DS_SQLITE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "${DS_SQLITE}"
+          },
+          "queryType": "table",
+          "queryText": "SELECT CAST(strftime('%s', date(start_time)) AS INTEGER) AS time,\n       sum(status='SUCCESS') AS success, sum(status='WARNING') AS warning, sum(status='FAILED') AS failed\nFROM runs WHERE kind='BACKUP' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY date(start_time) ORDER BY time",
+          "rawQueryText": "SELECT CAST(strftime('%s', date(start_time)) AS INTEGER) AS time,\n       sum(status='SUCCESS') AS success, sum(status='WARNING') AS warning, sum(status='FAILED') AS failed\nFROM runs WHERE kind='BACKUP' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY date(start_time) ORDER BY time",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "success"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "warning"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 4,
+      "title": "Storage utilization trend (GB)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "${DS_SQLITE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "${DS_SQLITE}"
+          },
+          "queryType": "table",
+          "queryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used_gb, sum(total) AS capacity_gb\nFROM capacity WHERE kind='STORAGE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
+          "rawQueryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used_gb, sum(total) AS capacity_gb\nFROM capacity WHERE kind='STORAGE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decgbytes"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "transformations": [
+        {
+          "id": "partitionByValues",
+          "options": {
+            "fields": [
+              "vendor"
+            ],
+            "keepFields": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "License utilization trend",
+      "type": "timeseries",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "${DS_SQLITE}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "${DS_SQLITE}"
+          },
+          "queryType": "table",
+          "queryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used, sum(total) AS licensed\nFROM capacity WHERE kind='LICENSE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
+          "rawQueryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used, sum(total) AS licensed\nFROM capacity WHERE kind='LICENSE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "transformations": [
+        {
+          "id": "partitionByValues",
+          "options": {
+            "fields": [
+              "vendor"
+            ],
+            "keepFields": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "RPO - hours since last backup",
+      "type": "table",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "${DS_SQLITE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 14,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "${DS_SQLITE}"
+          },
+          "queryType": "table",
+          "queryText": "SELECT vendor, name, workload, last_backup, rpo_hours, last_run_failed FROM v_rpo ORDER BY rpo_hours DESC",
+          "rawQueryText": "SELECT vendor, name, workload, last_backup, rpo_hours, last_run_failed FROM v_rpo ORDER BY rpo_hours DESC",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rpo_hours"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 24
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
+    },
+    {
+      "id": 7,
+      "title": "RTO - measured restore time (min)",
+      "type": "table",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "${DS_SQLITE}"
+      },
+      "gridPos": {
+        "x": 14,
+        "y": 22,
+        "w": 10,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "${DS_SQLITE}"
+          },
+          "queryType": "table",
+          "queryText": "SELECT * FROM v_rto",
+          "rawQueryText": "SELECT * FROM v_rto",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    }
+  ]
+}
