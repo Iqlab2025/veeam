@@ -1,0 +1,139 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_SQLITE",
+      "label": "SQLite (backup_dash.db)",
+      "type": "datasource",
+      "pluginId": "frser-sqlite-datasource",
+      "pluginName": "SQLite"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "frser-sqlite-datasource",
+      "name": "SQLite",
+      "version": "3.0.0"
+    }
+  ],
+  "title": "Capacity Trends",
+  "uid": "backup-capacity",
+  "tags": [
+    "backup",
+    "veeam"
+  ],
+  "timezone": "browser",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "refresh": "15m",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "links": [
+    {
+      "title": "Back to Backup Overview",
+      "type": "link",
+      "url": "/d/backup-overview/backup-overview",
+      "keepTime": true,
+      "icon": "dashboard"
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Storage utilization trend (GB)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "${DS_SQLITE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "${DS_SQLITE}"
+          },
+          "queryType": "table",
+          "queryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used_gb, sum(total) AS capacity_gb\nFROM capacity WHERE kind='STORAGE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
+          "rawQueryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used_gb, sum(total) AS capacity_gb\nFROM capacity WHERE kind='STORAGE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decgbytes"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "transformations": [
+        {
+          "id": "partitionByValues",
+          "options": {
+            "fields": [
+              "vendor"
+            ],
+            "keepFields": false
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "License utilization trend",
+      "type": "timeseries",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "${DS_SQLITE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "${DS_SQLITE}"
+          },
+          "queryType": "table",
+          "queryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used, sum(total) AS licensed\nFROM capacity WHERE kind='LICENSE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
+          "rawQueryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used, sum(total) AS licensed\nFROM capacity WHERE kind='LICENSE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "transformations": [
+        {
+          "id": "partitionByValues",
+          "options": {
+            "fields": [
+              "vendor"
+            ],
+            "keepFields": false
+          }
+        }
+      ]
+    }
+  ]
+}

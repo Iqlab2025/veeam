@@ -1,0 +1,250 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_SQLITE",
+      "label": "SQLite (backup_dash.db)",
+      "type": "datasource",
+      "pluginId": "frser-sqlite-datasource",
+      "pluginName": "SQLite"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "frser-sqlite-datasource",
+      "name": "SQLite",
+      "version": "3.0.0"
+    }
+  ],
+  "title": "Backup Runs",
+  "uid": "backup-runs",
+  "tags": [
+    "backup",
+    "veeam"
+  ],
+  "timezone": "browser",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "refresh": "15m",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "links": [
+    {
+      "title": "Back to Backup Overview",
+      "type": "link",
+      "url": "/d/backup-overview/backup-overview",
+      "keepTime": true,
+      "icon": "dashboard"
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "status",
+        "label": "Status",
+        "type": "custom",
+        "query": "total,success,warning,failed",
+        "hide": 0,
+        "current": {
+          "text": "total",
+          "value": "total"
+        },
+        "options": [
+          {
+            "text": "total",
+            "value": "total",
+            "selected": true
+          },
+          {
+            "text": "success",
+            "value": "success",
+            "selected": false
+          },
+          {
+            "text": "warning",
+            "value": "warning",
+            "selected": false
+          },
+          {
+            "text": "failed",
+            "value": "failed",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "name": "vendor",
+        "label": "Vendor",
+        "type": "custom",
+        "query": "all,veeam,commvault,cohesity",
+        "hide": 0,
+        "current": {
+          "text": "all",
+          "value": "all"
+        },
+        "options": [
+          {
+            "text": "all",
+            "value": "all",
+            "selected": true
+          },
+          {
+            "text": "veeam",
+            "value": "veeam",
+            "selected": false
+          },
+          {
+            "text": "commvault",
+            "value": "commvault",
+            "selected": false
+          },
+          {
+            "text": "cohesity",
+            "value": "cohesity",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "name": "workload",
+        "label": "Workload",
+        "type": "custom",
+        "query": "all,VM,FILE,DB,OTHER",
+        "hide": 0,
+        "current": {
+          "text": "all",
+          "value": "all"
+        },
+        "options": [
+          {
+            "text": "all",
+            "value": "all",
+            "selected": true
+          },
+          {
+            "text": "VM",
+            "value": "VM",
+            "selected": false
+          },
+          {
+            "text": "FILE",
+            "value": "FILE",
+            "selected": false
+          },
+          {
+            "text": "DB",
+            "value": "DB",
+            "selected": false
+          },
+          {
+            "text": "OTHER",
+            "value": "OTHER",
+            "selected": false
+          }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Backup runs: ${status} / ${vendor} / ${workload}",
+      "type": "table",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "${DS_SQLITE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 20
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "${DS_SQLITE}"
+          },
+          "queryType": "table",
+          "queryText": "SELECT CAST(strftime('%s', start_time) AS INTEGER) AS started, CAST(strftime('%s', end_time) AS INTEGER) AS ended,\n       round((julianday(coalesce(end_time, datetime('now'))) - julianday(start_time)) * 1440, 1) AS duration_min,\n       name AS job, vendor, workload, status, message, vendor_type\nFROM runs WHERE kind='BACKUP' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\n  AND ('${status}' = 'total' OR status = upper('${status}'))\n  AND ('${vendor}' = 'all' OR vendor = '${vendor}')\n  AND ('${workload}' = 'all' OR workload = '${workload}')\nORDER BY start_time DESC",
+          "rawQueryText": "SELECT CAST(strftime('%s', start_time) AS INTEGER) AS started, CAST(strftime('%s', end_time) AS INTEGER) AS ended,\n       round((julianday(coalesce(end_time, datetime('now'))) - julianday(start_time)) * 1440, 1) AS duration_min,\n       name AS job, vendor, workload, status, message, vendor_type\nFROM runs WHERE kind='BACKUP' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\n  AND ('${status}' = 'total' OR status = upper('${status}'))\n  AND ('${vendor}' = 'all' OR vendor = '${vendor}')\n  AND ('${workload}' = 'all' OR workload = '${workload}')\nORDER BY start_time DESC",
+          "timeColumns": [
+            "started",
+            "ended"
+          ]
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "started",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "SUCCESS": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "WARNING": {
+                        "color": "orange",
+                        "index": 1
+                      },
+                      "FAILED": {
+                        "color": "red",
+                        "index": 2
+                      },
+                      "RUNNING": {
+                        "color": "blue",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "message"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 500
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

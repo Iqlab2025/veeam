@@ -29,7 +29,7 @@
   },
   "refresh": "15m",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 7,
   "editable": true,
   "panels": [
     {
@@ -54,8 +54,8 @@
             "uid": "${DS_SQLITE}"
           },
           "queryType": "table",
-          "queryText": "SELECT count(*) AS total, coalesce(sum(status='SUCCESS'),0) AS successful,\n       coalesce(sum(status='WARNING'),0) AS warning, coalesce(sum(status='FAILED'),0) AS failed\nFROM runs WHERE kind='BACKUP' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')",
-          "rawQueryText": "SELECT count(*) AS total, coalesce(sum(status='SUCCESS'),0) AS successful,\n       coalesce(sum(status='WARNING'),0) AS warning, coalesce(sum(status='FAILED'),0) AS failed\nFROM runs WHERE kind='BACKUP' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')",
+          "queryText": "SELECT count(*) AS total, coalesce(sum(status='SUCCESS'),0) AS success,\n       coalesce(sum(status='WARNING'),0) AS warning, coalesce(sum(status='FAILED'),0) AS failed\nFROM runs WHERE kind='BACKUP' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')",
+          "rawQueryText": "SELECT count(*) AS total, coalesce(sum(status='SUCCESS'),0) AS success,\n       coalesce(sum(status='WARNING'),0) AS warning, coalesce(sum(status='FAILED'),0) AS failed\nFROM runs WHERE kind='BACKUP' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')",
           "timeColumns": [
             "time"
           ]
@@ -66,13 +66,20 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "blue"
-          }
+          },
+          "links": [
+            {
+              "title": "Open backup runs",
+              "targetBlank": true,
+              "url": "/d/backup-runs/backup-runs?var-status=${__field.name}&${__url_time_range}"
+            }
+          ]
         },
         "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "successful"
+              "options": "success"
             },
             "properties": [
               {
@@ -151,8 +158,8 @@
             "uid": "${DS_SQLITE}"
           },
           "queryType": "table",
-          "queryText": "SELECT vendor || ' / ' || workload AS failure, count(*) AS failed\nFROM runs WHERE kind='BACKUP' AND status='FAILED' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY vendor, workload ORDER BY failed DESC",
-          "rawQueryText": "SELECT vendor || ' / ' || workload AS failure, count(*) AS failed\nFROM runs WHERE kind='BACKUP' AND status='FAILED' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY vendor, workload ORDER BY failed DESC",
+          "queryText": "SELECT vendor || ' / ' || workload AS failure, vendor, workload, count(*) AS failed\nFROM runs WHERE kind='BACKUP' AND status='FAILED' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY vendor, workload ORDER BY failed DESC",
+          "rawQueryText": "SELECT vendor || ' / ' || workload AS failure, vendor, workload, count(*) AS failed\nFROM runs WHERE kind='BACKUP' AND status='FAILED' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY vendor, workload ORDER BY failed DESC",
           "timeColumns": [
             "time"
           ]
@@ -163,7 +170,14 @@
           "color": {
             "mode": "fixed",
             "fixedColor": "red"
-          }
+          },
+          "links": [
+            {
+              "title": "Open these failed runs",
+              "targetBlank": true,
+              "url": "/d/backup-runs/backup-runs?var-status=failed&var-vendor=${__data.fields.vendor}&var-workload=${__data.fields.workload}&${__url_time_range}"
+            }
+          ]
         },
         "overrides": []
       },
@@ -267,8 +281,8 @@
     },
     {
       "id": 4,
-      "title": "Storage utilization trend (GB)",
-      "type": "timeseries",
+      "title": "Storage utilization (click for trend)",
+      "type": "stat",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "${DS_SQLITE}"
@@ -277,7 +291,7 @@
         "x": 0,
         "y": 14,
         "w": 12,
-        "h": 8
+        "h": 5
       },
       "targets": [
         {
@@ -287,8 +301,8 @@
             "uid": "${DS_SQLITE}"
           },
           "queryType": "table",
-          "queryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used_gb, sum(total) AS capacity_gb\nFROM capacity WHERE kind='STORAGE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
-          "rawQueryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used_gb, sum(total) AS capacity_gb\nFROM capacity WHERE kind='STORAGE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
+          "queryText": "SELECT sum(used) AS used_gb, sum(total) AS capacity_gb, round(100.0 * sum(used) / sum(total), 1) AS used_pct\nFROM capacity WHERE kind='STORAGE'\n  AND (vendor, collected_at) IN (SELECT vendor, max(collected_at) FROM capacity WHERE kind='STORAGE' GROUP BY vendor)",
+          "rawQueryText": "SELECT sum(used) AS used_gb, sum(total) AS capacity_gb, round(100.0 * sum(used) / sum(total), 1) AS used_pct\nFROM capacity WHERE kind='STORAGE'\n  AND (vendor, collected_at) IN (SELECT vendor, max(collected_at) FROM capacity WHERE kind='STORAGE' GROUP BY vendor)",
           "timeColumns": [
             "time"
           ]
@@ -296,27 +310,78 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "decgbytes"
-        },
-        "overrides": []
-      },
-      "options": {},
-      "transformations": [
-        {
-          "id": "partitionByValues",
-          "options": {
-            "fields": [
-              "vendor"
-            ],
-            "keepFields": false
+          "unit": "decgbytes",
+          "links": [
+            {
+              "title": "Open trend",
+              "targetBlank": true,
+              "url": "/d/backup-capacity/backup-capacity?${__url_time_range}"
+            }
+          ],
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
           }
-        }
-      ]
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "used_pct"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 75
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "textMode": "value_and_name",
+        "graphMode": "none"
+      },
+      "transformations": []
     },
     {
       "id": 5,
-      "title": "License utilization trend",
-      "type": "timeseries",
+      "title": "License utilization (click for trend)",
+      "type": "stat",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "${DS_SQLITE}"
@@ -325,7 +390,7 @@
         "x": 12,
         "y": 14,
         "w": 12,
-        "h": 8
+        "h": 5
       },
       "targets": [
         {
@@ -335,33 +400,86 @@
             "uid": "${DS_SQLITE}"
           },
           "queryType": "table",
-          "queryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used, sum(total) AS licensed\nFROM capacity WHERE kind='LICENSE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
-          "rawQueryText": "SELECT CAST(strftime('%s', collected_at) AS INTEGER) AS time, vendor, sum(used) AS used, sum(total) AS licensed\nFROM capacity WHERE kind='LICENSE' AND collected_at BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')\nGROUP BY collected_at, vendor ORDER BY time",
+          "queryText": "SELECT sum(used) AS used, sum(total) AS licensed, round(100.0 * sum(used) / sum(total), 1) AS used_pct\nFROM capacity WHERE kind='LICENSE'\n  AND (vendor, collected_at) IN (SELECT vendor, max(collected_at) FROM capacity WHERE kind='LICENSE' GROUP BY vendor)",
+          "rawQueryText": "SELECT sum(used) AS used, sum(total) AS licensed, round(100.0 * sum(used) / sum(total), 1) AS used_pct\nFROM capacity WHERE kind='LICENSE'\n  AND (vendor, collected_at) IN (SELECT vendor, max(collected_at) FROM capacity WHERE kind='LICENSE' GROUP BY vendor)",
           "timeColumns": [
             "time"
           ]
         }
       ],
       "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "options": {},
-      "transformations": [
-        {
-          "id": "partitionByValues",
-          "options": {
-            "fields": [
-              "vendor"
-            ],
-            "keepFields": false
+        "defaults": {
+          "unit": "none",
+          "links": [
+            {
+              "title": "Open trend",
+              "targetBlank": true,
+              "url": "/d/backup-capacity/backup-capacity?${__url_time_range}"
+            }
+          ],
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
           }
-        }
-      ]
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "used_pct"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 75
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "textMode": "value_and_name",
+        "graphMode": "none"
+      },
+      "transformations": []
     },
     {
       "id": 6,
-      "title": "RPO - hours since last backup",
+      "title": "RPO compliance: target ${rpo_target_hours}h vs actual",
       "type": "table",
       "datasource": {
         "type": "frser-sqlite-datasource",
@@ -369,7 +487,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 22,
+        "y": 19,
         "w": 14,
         "h": 9
       },
@@ -381,8 +499,8 @@
             "uid": "${DS_SQLITE}"
           },
           "queryType": "table",
-          "queryText": "SELECT vendor, name, workload, last_backup, rpo_hours, last_run_failed FROM v_rpo ORDER BY rpo_hours DESC",
-          "rawQueryText": "SELECT vendor, name, workload, last_backup, rpo_hours, last_run_failed FROM v_rpo ORDER BY rpo_hours DESC",
+          "queryText": "SELECT vendor, name, workload, last_backup,\n       ${rpo_target_hours} * 3600 AS rpo_target,\n       CAST((julianday('now') - julianday(last_backup)) * 86400 AS INTEGER) AS data_loss_window,\n       CASE WHEN last_backup IS NULL OR (julianday('now') - julianday(last_backup)) * 24 > ${rpo_target_hours}\n            THEN 'BREACHED' ELSE 'MET' END AS rpo_status,\n       last_run_failed\nFROM protected_objects ORDER BY rpo_status = 'MET', data_loss_window DESC",
+          "rawQueryText": "SELECT vendor, name, workload, last_backup,\n       ${rpo_target_hours} * 3600 AS rpo_target,\n       CAST((julianday('now') - julianday(last_backup)) * 86400 AS INTEGER) AS data_loss_window,\n       CASE WHEN last_backup IS NULL OR (julianday('now') - julianday(last_backup)) * 24 > ${rpo_target_hours}\n            THEN 'BREACHED' ELSE 'MET' END AS rpo_status,\n       last_run_failed\nFROM protected_objects ORDER BY rpo_status = 'MET', data_loss_window DESC",
           "timeColumns": [
             "time"
           ]
@@ -394,24 +512,50 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "rpo_hours"
+              "options": "rpo_target"
             },
             "properties": [
               {
-                "id": "thresholds",
-                "value": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": null
-                    },
-                    {
-                      "color": "red",
-                      "value": 24
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "data_loss_window"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "rpo_status"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "MET": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "BREACHED": {
+                        "color": "red",
+                        "index": 1
+                      }
                     }
-                  ]
-                }
+                  }
+                ]
               },
               {
                 "id": "custom.cellOptions",
@@ -435,7 +579,7 @@
       },
       "gridPos": {
         "x": 14,
-        "y": 22,
+        "y": 19,
         "w": 10,
         "h": 9
       },
@@ -460,5 +604,47 @@
       },
       "options": {}
     }
-  ]
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "rpo_target_hours",
+        "label": "RPO target (hours)",
+        "type": "custom",
+        "query": "24,1,4,12,48",
+        "hide": 0,
+        "current": {
+          "text": "24",
+          "value": "24"
+        },
+        "options": [
+          {
+            "text": "24",
+            "value": "24",
+            "selected": true
+          },
+          {
+            "text": "1",
+            "value": "1",
+            "selected": false
+          },
+          {
+            "text": "4",
+            "value": "4",
+            "selected": false
+          },
+          {
+            "text": "12",
+            "value": "12",
+            "selected": false
+          },
+          {
+            "text": "48",
+            "value": "48",
+            "selected": false
+          }
+        ]
+      }
+    ]
+  }
 }

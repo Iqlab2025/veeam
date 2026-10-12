@@ -3,7 +3,7 @@
   */15 * * * * python3 /opt/backup-dash/veeam_collector.py
 
 Settings come from .env next to this file (real environment variables win over it):
-     VEEAM_URL (default https://192.168.1.33:9419), VEEAM_USER, VEEAM_PASS, DB_PATH (default backup_dash.db),
+     VEEAM_URL (default https://192.168.1.34:9419), VEEAM_USER, VEEAM_PASS, DB_PATH (default backup_dash.db),
      VEEAM_CA_FILE (exported VBR cert) or VEEAM_INSECURE=1 (skip TLS check, POC only), LOOKBACK_DAYS (first run, default 30).
 Self-check (no server needed): python3 veeam_collector.py --selftest
 """
@@ -28,7 +28,7 @@ def load_env(path):
 
 load_env(os.path.join(HERE, '.env'))
 VENDOR = 'veeam'
-BASE = os.environ.get('VEEAM_URL', 'https://192.168.1.33:9419').rstrip('/')
+BASE = os.environ.get('VEEAM_URL', 'https://192.168.1.34:9419').rstrip('/')
 DB_PATH = os.path.join(HERE, os.environ.get('DB_PATH', 'backup_dash.db'))  # relative paths = next to this file
 SCHEMA = os.path.join(HERE, 'schema.sql')
 
