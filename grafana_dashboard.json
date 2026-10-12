@@ -29,7 +29,7 @@
   },
   "refresh": "15m",
   "schemaVersion": 39,
-  "version": 7,
+  "version": 8,
   "editable": true,
   "panels": [
     {
@@ -191,6 +191,76 @@
       }
     },
     {
+      "id": 9,
+      "title": "Failed backups by level (click for jobs)",
+      "type": "stat",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "${DS_SQLITE}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 24,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "${DS_SQLITE}"
+          },
+          "queryType": "table",
+          "queryText": "SELECT coalesce(sum(workload='VM'),0) AS VM, coalesce(sum(workload='FILE'),0) AS FILE,\n       coalesce(sum(workload='DB'),0) AS DB, coalesce(sum(workload='OTHER'),0) AS OTHER\nFROM runs WHERE kind='BACKUP' AND status='FAILED' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')",
+          "rawQueryText": "SELECT coalesce(sum(workload='VM'),0) AS VM, coalesce(sum(workload='FILE'),0) AS FILE,\n       coalesce(sum(workload='DB'),0) AS DB, coalesce(sum(workload='OTHER'),0) AS OTHER\nFROM runs WHERE kind='BACKUP' AND status='FAILED' AND start_time BETWEEN datetime(${__from:date:seconds},'unixepoch') AND datetime(${__to:date:seconds},'unixepoch')",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "textMode": "value_and_name",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "title": "Open these failed runs",
+              "targetBlank": true,
+              "url": "/d/backup-runs/backup-runs?var-status=failed&var-workload=${__field.name}&${__url_time_range}"
+            }
+          ]
+        },
+        "overrides": []
+      }
+    },
+    {
       "id": 3,
       "title": "Backup job trend (per day)",
       "type": "timeseries",
@@ -200,7 +270,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 6,
+        "y": 11,
         "w": 24,
         "h": 8
       },
@@ -289,7 +359,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 14,
+        "y": 19,
         "w": 12,
         "h": 5
       },
@@ -388,7 +458,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 14,
+        "y": 19,
         "w": 12,
         "h": 5
       },
@@ -487,7 +557,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 19,
+        "y": 24,
         "w": 14,
         "h": 9
       },
@@ -579,7 +649,7 @@
       },
       "gridPos": {
         "x": 14,
-        "y": 19,
+        "y": 24,
         "w": 10,
         "h": 9
       },

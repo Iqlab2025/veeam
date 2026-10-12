@@ -9,6 +9,7 @@ Self-check (no server needed): python3 veeam_collector.py --selftest
 """
 import json, os, sqlite3, ssl, sys, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -85,6 +86,10 @@ def call(path, token=None, data=None, **params):
         req.add_header('Authorization', 'Bearer ' + token)
     try:
         with urllib.request.urlopen(req, context=CTX, timeout=60) as r:
+            if data and r.headers.get('Date'):  # login only: VBR stamps sessions/restore points with its own clock
+                skew = (datetime.now(timezone.utc) - parsedate_to_datetime(r.headers['Date'])).total_seconds()
+                if abs(skew) > 300:
+                    print(f'WARNING: Veeam server clock is {skew / 3600:+.1f} h off; backup times and RPO will be wrong', file=sys.stderr)
             return json.load(r)
     except urllib.error.HTTPError as e:
         raise ApiError(f'{e.code} {path}: {e.read()[:500].decode(errors="replace")}')
